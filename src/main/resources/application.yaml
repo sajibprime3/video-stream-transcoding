@@ -1,0 +1,11 @@
+spring:
+  application:
+  name: transcoding
+  kafka:
+    bootstrap-servers: localhost:9092
+
+minio:
+  url: http://localhost:9000
+  username: user
+  password: password
+  object-part-size: 5242880

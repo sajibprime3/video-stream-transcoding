@@ -26,6 +26,7 @@ repositories {
 
 dependencies {
     implementation 'org.springframework.boot:spring-boot-starter'
+    implementation 'org.springframework.boot:spring-boot-starter-json'
 	implementation 'org.springframework.kafka:spring-kafka'
     implementation 'io.minio:minio:8.5.17'
 	compileOnly 'org.projectlombok:lombok'
