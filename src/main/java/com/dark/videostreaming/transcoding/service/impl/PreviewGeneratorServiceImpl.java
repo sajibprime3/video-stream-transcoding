@@ -15,12 +15,15 @@ import java.time.Instant;
 import java.util.List;
 import java.util.Locale;
 
+import com.dark.videostreaming.transcoding.event.Event;
+import com.dark.videostreaming.transcoding.event.model.PreviewUpdateEvent;
 import com.dark.videostreaming.transcoding.event.model.VideoUploadedEvent;
 import com.dark.videostreaming.transcoding.service.PreviewGeneratorService;
 import com.dark.videostreaming.transcoding.service.PreviewStorageService;
 import com.dark.videostreaming.transcoding.service.VideoStorageService;
 
 import org.apache.commons.io.FileUtils;
+import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -36,6 +39,7 @@ import lombok.extern.slf4j.Slf4j;
 public class PreviewGeneratorServiceImpl implements PreviewGeneratorService {
     private final VideoStorageService videoStorageService;
     private final PreviewStorageService previewStorageService;
+    private final KafkaTemplate<String, Event<?>> kafkaTemplate;
 
     private final Path temp = Paths.get(System.getProperty("user.dir")).resolve("tmp");
 
@@ -44,15 +48,14 @@ public class PreviewGeneratorServiceImpl implements PreviewGeneratorService {
     @Override
     public void generatePreview(VideoUploadedEvent event) {
         generateAndStorePreview(event.videoId(), event.fileName(), event.fileSize());
-        // eventPublisher.publishEvent(new ThumbnailCreationEvent(event.getFileId()));
     }
 
     @Transactional
     private void generateAndStorePreview(long videoId, String filename, long filesize) {
         try {
-            // TODO: Publish a event instead
-            // preview.setStatus(Preview.PreviewStatus.PROCESSING);
-            // previewRepository.save(preview);
+            PreviewUpdateEvent updateEvent = PreviewUpdateEvent.builder().videoId(videoId).status("processing").build();
+            kafkaTemplate.send("video.preview.events",
+                    new Event<PreviewUpdateEvent>("PreviewUpdateEvent", "1.0", Instant.now(), updateEvent));
             if (Files.notExists(temp, LinkOption.NOFOLLOW_LINKS))
                 Files.createDirectory(temp);
             Path tempInput = temp.resolve(filename + ".mp4");
@@ -76,11 +79,15 @@ public class PreviewGeneratorServiceImpl implements PreviewGeneratorService {
                 concatClips(tempDir.toString(), outputPreview.toString());
                 long size = outputPreview.toFile().length();
                 try (InputStream inputStream = Files.newInputStream(outputPreview)) {
-                    previewStorageService.save(inputStream, filename + Instant.now(), size);
-                    // TODO: publish Event instead.
-                    // preview.setSize(size);
-                    // preview.setStatus(Preview.PreviewStatus.READY);
-                    // previewRepository.save(preview);
+                    Instant instant = Instant.now();
+                    String previewFilename = filename + instant;
+                    updateEvent.setName(previewFilename);
+                    updateEvent.setSize(size);
+                    updateEvent.setCreatedAt(instant);
+                    updateEvent.setStatus("ready");
+                    previewStorageService.save(inputStream, previewFilename, size);
+                    kafkaTemplate.send("video.preview.events",
+                            new Event<PreviewUpdateEvent>("PreviewUpdateEvent", "1.0", instant, updateEvent));
                 }
             } finally {
                 FileUtils.deleteDirectory(tempDir.toFile());
@@ -90,9 +97,12 @@ public class PreviewGeneratorServiceImpl implements PreviewGeneratorService {
         } catch (IOException e) {
             log.warn("Failed to completely delete temp dir, but ignoring.", e);
         } catch (Exception e) {
-            // TODO: publish event instead.
-            // preview.setStatus(Preview.PreviewStatus.FAILED);
-            // previewRepository.save(preview);
+            PreviewUpdateEvent failedPreviewEvent = PreviewUpdateEvent.builder()
+                    .videoId(videoId)
+                    .status("failed")
+                    .build();
+            kafkaTemplate.send("video.preview.events", new Event<PreviewUpdateEvent>("PreviewUpdateEvent", "1.0",
+                    Instant.now(), failedPreviewEvent));
             throw new RuntimeException("Failed to create Preview: ", e);
         }
     }
