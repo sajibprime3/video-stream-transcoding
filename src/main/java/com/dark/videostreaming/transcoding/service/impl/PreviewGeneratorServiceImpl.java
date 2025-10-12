@@ -11,26 +11,19 @@ import java.nio.file.LinkOption;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardOpenOption;
+import java.time.Instant;
 import java.util.List;
 import java.util.Locale;
 
-import jakarta.transaction.Transactional;
-
-import com.dark.videostreaming.transcoding.entity.File;
-import com.dark.videostreaming.transcoding.entity.FileMetadata;
-import com.dark.videostreaming.transcoding.entity.Preview;
-import com.dark.videostreaming.transcoding.event.PreviewCreationEvent;
-import com.dark.videostreaming.transcoding.event.ThumbnailCreationEvent;
-import com.dark.videostreaming.transcoding.repository.FileRepository;
-import com.dark.videostreaming.transcoding.repository.PreviewRepository;
+import com.dark.videostreaming.transcoding.event.model.VideoUploadedEvent;
 import com.dark.videostreaming.transcoding.service.PreviewGeneratorService;
 import com.dark.videostreaming.transcoding.service.PreviewStorageService;
 import com.dark.videostreaming.transcoding.service.VideoStorageService;
 
 import org.apache.commons.io.FileUtils;
-import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.event.TransactionPhase;
 import org.springframework.transaction.event.TransactionalEventListener;
 
@@ -41,35 +34,32 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 @Service
 public class PreviewGeneratorServiceImpl implements PreviewGeneratorService {
-    private final FileRepository fileRepository;
-    private final PreviewRepository previewRepository;
     private final VideoStorageService videoStorageService;
     private final PreviewStorageService previewStorageService;
-    private final ApplicationEventPublisher eventPublisher;
 
     private final Path temp = Paths.get(System.getProperty("user.dir")).resolve("tmp");
 
     @Async
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     @Override
-    public void generatePreview(PreviewCreationEvent event) {
-        File video = fileRepository.findById(event.getFileId()).orElseThrow();
-        generateAndStorePreview(video.getPreview(), video.getMetadata());
-        eventPublisher.publishEvent(new ThumbnailCreationEvent(event.getFileId()));
+    public void generatePreview(VideoUploadedEvent event) {
+        generateAndStorePreview(event.videoId(), event.fileName(), event.fileSize());
+        // eventPublisher.publishEvent(new ThumbnailCreationEvent(event.getFileId()));
     }
 
     @Transactional
-    private void generateAndStorePreview(Preview preview, FileMetadata metadata) {
+    private void generateAndStorePreview(long videoId, String filename, long filesize) {
         try {
-            preview.setStatus(Preview.PreviewStatus.PROCESSING);
-            previewRepository.save(preview);
+            // TODO: Publish a event instead
+            // preview.setStatus(Preview.PreviewStatus.PROCESSING);
+            // previewRepository.save(preview);
             if (Files.notExists(temp, LinkOption.NOFOLLOW_LINKS))
                 Files.createDirectory(temp);
-            Path tempInput = temp.resolve(metadata.getUuid() + ".mp4");
+            Path tempInput = temp.resolve(filename + ".mp4");
             if (Files.notExists(tempInput, LinkOption.NOFOLLOW_LINKS))
                 Files.createFile(tempInput);
-            try (InputStream is = videoStorageService.getInputStream(metadata.getUuid().toString(), 0,
-                    metadata.getSize());
+            try (InputStream is = videoStorageService.getInputStream(filename, 0,
+                    filesize);
                     OutputStream os = Files.newOutputStream(tempInput, StandardOpenOption.TRUNCATE_EXISTING)) {
                 is.transferTo(os);
             }
@@ -86,10 +76,11 @@ public class PreviewGeneratorServiceImpl implements PreviewGeneratorService {
                 concatClips(tempDir.toString(), outputPreview.toString());
                 long size = outputPreview.toFile().length();
                 try (InputStream inputStream = Files.newInputStream(outputPreview)) {
-                    previewStorageService.save(inputStream, preview.getName(), size);
-                    preview.setSize(size);
-                    preview.setStatus(Preview.PreviewStatus.READY);
-                    previewRepository.save(preview);
+                    previewStorageService.save(inputStream, filename + Instant.now(), size);
+                    // TODO: publish Event instead.
+                    // preview.setSize(size);
+                    // preview.setStatus(Preview.PreviewStatus.READY);
+                    // previewRepository.save(preview);
                 }
             } finally {
                 FileUtils.deleteDirectory(tempDir.toFile());
@@ -99,8 +90,9 @@ public class PreviewGeneratorServiceImpl implements PreviewGeneratorService {
         } catch (IOException e) {
             log.warn("Failed to completely delete temp dir, but ignoring.", e);
         } catch (Exception e) {
-            preview.setStatus(Preview.PreviewStatus.FAILED);
-            previewRepository.save(preview);
+            // TODO: publish event instead.
+            // preview.setStatus(Preview.PreviewStatus.FAILED);
+            // previewRepository.save(preview);
             throw new RuntimeException("Failed to create Preview: ", e);
         }
     }

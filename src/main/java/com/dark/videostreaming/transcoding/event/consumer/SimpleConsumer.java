@@ -2,6 +2,7 @@ package com.dark.videostreaming.transcoding.event.consumer;
 
 import com.dark.videostreaming.transcoding.event.Event;
 import com.dark.videostreaming.transcoding.event.model.VideoUploadedEvent;
+import com.dark.videostreaming.transcoding.service.PreviewGeneratorService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import org.springframework.kafka.annotation.KafkaListener;
@@ -16,16 +17,15 @@ import lombok.extern.slf4j.Slf4j;
 public class SimpleConsumer {
 
     private final ObjectMapper objectMapper;
+    private final PreviewGeneratorService previewGeneratorService;
 
     @KafkaListener(topics = "video.events")
     public void listen(Event<?> event) {
-        log.info("Received event: {}", event.getEventType());
         Object payload = event.getPayload();
 
         if ("VideoUploaded".equals(event.getEventType())) {
-            VideoUploadedEvent data = objectMapper.convertValue(payload,
-                    VideoUploadedEvent.class);
-            log.info("id:{}, filename:{}", data.videoId(), data.fileName());
+            VideoUploadedEvent data = objectMapper.convertValue(payload, VideoUploadedEvent.class);
+            previewGeneratorService.generatePreview(data);
         }
     }
 }

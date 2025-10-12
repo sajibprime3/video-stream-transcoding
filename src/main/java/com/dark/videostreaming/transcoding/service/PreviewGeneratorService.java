@@ -1,9 +1,9 @@
 package com.dark.videostreaming.transcoding.service;
 
-import com.dark.videostreaming.transcoding.event.PreviewCreationEvent;
+import com.dark.videostreaming.transcoding.event.model.VideoUploadedEvent;
 
 public interface PreviewGeneratorService {
-    
-    void generatePreview(PreviewCreationEvent event);
-    
+
+    void generatePreview(VideoUploadedEvent event);
+
 }
