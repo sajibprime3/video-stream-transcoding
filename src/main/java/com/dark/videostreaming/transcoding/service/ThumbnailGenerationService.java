@@ -1,7 +1,7 @@
 package com.dark.videostreaming.transcoding.service;
 
-import com.dark.videostreaming.transcoding.event.ThumbnailCreationEvent;
+import com.dark.videostreaming.transcoding.event.model.PreviewUpdateEvent;
 
 public interface ThumbnailGenerationService {
-    void generateThumbnail(ThumbnailCreationEvent event);
+    void generateThumbnail(PreviewUpdateEvent event);
 }

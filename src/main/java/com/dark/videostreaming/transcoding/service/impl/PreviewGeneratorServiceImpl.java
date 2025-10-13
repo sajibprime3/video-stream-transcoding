@@ -26,9 +26,6 @@ import org.apache.commons.io.FileUtils;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-import org.springframework.transaction.event.TransactionPhase;
-import org.springframework.transaction.event.TransactionalEventListener;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -44,13 +41,11 @@ public class PreviewGeneratorServiceImpl implements PreviewGeneratorService {
     private final Path temp = Paths.get(System.getProperty("user.dir")).resolve("tmp");
 
     @Async
-    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     @Override
     public void generatePreview(VideoUploadedEvent event) {
         generateAndStorePreview(event.videoId(), event.fileName(), event.fileSize());
     }
 
-    @Transactional
     private void generateAndStorePreview(long videoId, String filename, long filesize) {
         try {
             PreviewUpdateEvent updateEvent = PreviewUpdateEvent.builder().videoId(videoId).status("processing").build();
@@ -80,7 +75,7 @@ public class PreviewGeneratorServiceImpl implements PreviewGeneratorService {
                 long size = outputPreview.toFile().length();
                 try (InputStream inputStream = Files.newInputStream(outputPreview)) {
                     Instant instant = Instant.now();
-                    String previewFilename = filename + instant;
+                    String previewFilename = filename + "_preview_" + instant;
                     updateEvent.setName(previewFilename);
                     updateEvent.setSize(size);
                     updateEvent.setCreatedAt(instant);
