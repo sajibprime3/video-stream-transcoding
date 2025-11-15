@@ -13,6 +13,7 @@ import java.nio.file.StandardOpenOption;
 import java.time.Instant;
 import java.util.List;
 import java.util.Locale;
+import java.util.UUID;
 
 import com.dark.videostreaming.transcoding.event.Event;
 import com.dark.videostreaming.transcoding.event.model.PreviewUpdateEvent;
@@ -46,7 +47,7 @@ public class ThumbnailGenerationServiceImpl implements ThumbnailGenerationServic
         generateAndStoreThumbnail(event.getVideoId(), event.getName(), event.getSize());
     }
 
-    private void generateAndStoreThumbnail(long videoId, String filename, long filesize) {
+    private void generateAndStoreThumbnail(UUID videoId, String filename, long filesize) {
         try {
             ThumbnailUpdateEvent updatedEvent = ThumbnailUpdateEvent.builder().videoId(videoId).status("processing")
                     .build();

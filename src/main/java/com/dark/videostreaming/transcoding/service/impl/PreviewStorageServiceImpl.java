@@ -15,12 +15,12 @@ import java.io.InputStream;
 @RequiredArgsConstructor
 @Service
 public class PreviewStorageServiceImpl implements PreviewStorageService {
-    
+
     private final MinioClient client;
-    
+
     @Value("${minio.object-part-size}")
     private Long objectPartSize;
-    
+
     @Override
     public void save(InputStream file, String name, long size) throws Exception {
         client.putObject(
@@ -28,8 +28,7 @@ public class PreviewStorageServiceImpl implements PreviewStorageService {
                         .bucket(MinioConfig.PREVIEW_BUCKET_NAME)
                         .object(name)
                         .stream(file, size, objectPartSize)
-                        .build()
-        );
+                        .build());
     }
 
     @Override
@@ -38,8 +37,7 @@ public class PreviewStorageServiceImpl implements PreviewStorageService {
                 RemoveObjectArgs.builder()
                         .bucket(MinioConfig.PREVIEW_BUCKET_NAME)
                         .object(name)
-                        .build()
-        );
+                        .build());
     }
 
     @Override
@@ -50,8 +48,7 @@ public class PreviewStorageServiceImpl implements PreviewStorageService {
                         .object(name)
                         .offset(offset)
                         .length(length)
-                        .build()
-        );
+                        .build());
     }
-    
+
 }

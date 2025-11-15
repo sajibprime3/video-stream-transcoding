@@ -14,6 +14,7 @@ import java.nio.file.StandardOpenOption;
 import java.time.Instant;
 import java.util.List;
 import java.util.Locale;
+import java.util.UUID;
 
 import com.dark.videostreaming.transcoding.event.Event;
 import com.dark.videostreaming.transcoding.event.model.PreviewUpdateEvent;
@@ -46,7 +47,7 @@ public class PreviewGeneratorServiceImpl implements PreviewGeneratorService {
         generateAndStorePreview(event.videoId(), event.fileName(), event.fileSize());
     }
 
-    private void generateAndStorePreview(long videoId, String filename, long filesize) {
+    private void generateAndStorePreview(UUID videoId, String filename, long filesize) {
         try {
             PreviewUpdateEvent updateEvent = PreviewUpdateEvent.builder().videoId(videoId).status("processing").build();
             kafkaTemplate.send("video.preview.events",

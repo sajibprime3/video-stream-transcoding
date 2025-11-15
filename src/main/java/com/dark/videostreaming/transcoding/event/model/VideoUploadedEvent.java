@@ -1,7 +1,9 @@
 package com.dark.videostreaming.transcoding.event.model;
 
+import java.util.UUID;
+
 public record VideoUploadedEvent(
-        long videoId,
+        UUID videoId,
         String fileName,
         long fileSize) {
 }
